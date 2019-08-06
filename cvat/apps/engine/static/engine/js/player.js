@@ -509,8 +509,13 @@ class PlayerController {
                 return false;
             });
 
+            const fitHandler = Logger.shortkeyLogDecorator(() => {
+                this.fit();
+            });
+
             const { shortkeys } = window.cvat.config;
 
+            Mousetrap.bind('.', fitHandler, 'keydown');
             Mousetrap.bind(shortkeys.next_frame.value, nextHandler, 'keydown');
             Mousetrap.bind(shortkeys.prev_frame.value, prevHandler, 'keydown');
             Mousetrap.bind(shortkeys.next_filter_frame.value, nextFilterFrameHandler, 'keydown');
@@ -531,6 +536,29 @@ class PlayerController {
         }
 
         setupPlayerShortcuts.call(this, playerModel);
+    }
+
+    zoomToFour(e, canvas) {
+        //experiments showed that 4th zoom level is at zoom 0.83106. 
+        //since this value might chance from computer to computer, we allow for ~10% error
+        //in order to avoid infinite loops
+        const zoomFourLowBorder = 0.75864;
+        const zoomFourHighBorder = 0.9104;
+
+        const point = window.cvat.translate.point.clientToCanvas(canvas, e.clientX, e.clientY);
+
+        var done = false;
+        while(!done) {
+            if(this._model.geometry.scale < zoomFourLowBorder) {
+                this._model.scale(point, 1);
+            } else if(this._model.geometry.scale > zoomFourHighBorder) {
+                this._model.scale(point, -1);
+            } else {
+                done = true;
+            }
+        }
+        
+        e.preventDefault();
     }
 
     zoom(e, canvas) {
@@ -755,7 +783,7 @@ class PlayerView {
         });
 
         this._playerContentUI.on('wheel', e => this._controller.zoom(e, this._playerBackgroundUI[0]));
-        this._playerContentUI.on('dblclick', () => this._controller.fit());
+        this._playerContentUI.on('dblclick', e => this._controller.zoomToFour(e, this._playerBackgroundUI[0]));
         this._playerContentUI.on('mousemove', e => this._controller.frameMouseMove(e));
         this._progressUI.on('mousedown', e => this._controller.progressMouseDown(e));
         this._progressUI.on('mouseup', () => this._controller.progressMouseUp());
